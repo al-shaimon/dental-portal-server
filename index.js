@@ -22,9 +22,21 @@ async function run() {
     const appointmentOptionCollection = client.db('doctorsPortal').collection('appointmentOptions');
     const bookingsCollection = client.db('doctorsPortal').collection('bookings');
 
+    // Use Aggregate to query multiple collection and then merge data
     app.get('/appointmentOptions', async (req, res) => {
+      const date = req.query.date;
+      console.log(date);
       const query = {};
       const options = await appointmentOptionCollection.find(query).toArray();
+      const bookingQuery = { appointmentDate: date };
+      const alreadyBooked = await bookingsCollection.find(bookingQuery).toArray();
+
+      // code carefully :D
+      options.forEach((option) => {
+        const optionBooked = alreadyBooked.filter((book) => book.treatment === option.name);
+        const bookedSlots = optionBooked.map((book) => book.slot);
+        console.log(date, option.name, bookedSlots);
+      });
       res.send(options);
     });
 
@@ -39,7 +51,6 @@ async function run() {
 
     app.post('/bookings', async (req, res) => {
       const booking = req.body;
-      console.log(booking);
       const result = await bookingsCollection.insertOne(booking);
       res.send(result);
     });
