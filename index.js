@@ -99,20 +99,28 @@ async function run() {
      * app.delete('/bookings/:id')
      */
 
+    app.get('/bookings', async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+      const query = { email: email };
+      const bookings = await bookingsCollection.find(query).toArray();
+      res.send(bookings);
+    });
+
     app.post('/bookings', async (req, res) => {
       const booking = req.body;
       console.log(booking);
       const query = {
         appointmentDate: booking.appointmentDate,
         email: booking.email,
-        treatment: booking.treatment
+        treatment: booking.treatment,
       };
 
       const alreadyBooked = await bookingsCollection.find(query).toArray();
 
       if (alreadyBooked.length) {
         const message = `You already have a booking on ${booking.appointmentDate}`;
-        return res.send({acknowledged: false, message})
+        return res.send({ acknowledged: false, message });
       }
 
       const result = await bookingsCollection.insertOne(booking);
