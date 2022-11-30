@@ -13,6 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.twtll.mongodb.net/?retryWrites=true&w=majority`;
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.zeydczn.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
@@ -47,7 +48,6 @@ async function run() {
 
     // NOTE: make sure you use verifyAdmin after verifyJWT
     const verifyAdmin = async (req, res, next) => {
-      console.log('inside verifyAdmin', req.decoded.email);
       const decodedEmail = req.decoded.email;
       const query = { email: decodedEmail };
       const user = await usersCollection.findOne(query);
@@ -55,14 +55,12 @@ async function run() {
       if (user?.role !== 'admin') {
         return res.status(403).send({ message: 'forbidden access' });
       }
-
       next();
     };
 
     // Use Aggregate to query multiple collection and then merge data
     app.get('/appointmentOptions', async (req, res) => {
       const date = req.query.date;
-      console.log(date);
       const query = {};
       const options = await appointmentOptionCollection.find(query).toArray();
 
@@ -80,54 +78,54 @@ async function run() {
       res.send(options);
     });
 
-    app.get('/v2/appointmentOptions', async (req, res) => {
-      const date = req.query.date;
-      const options = await appointmentOptionCollection
-        .aggregate([
-          {
-            $lookup: {
-              from: 'bookings',
-              localField: 'name',
-              foreignField: 'treatment',
-              pipeline: [
-                {
-                  $match: {
-                    $expr: {
-                      $eq: ['$appointmentDate', date],
-                    },
-                  },
-                },
-              ],
-              as: 'booked',
-            },
-          },
-          {
-            $project: {
-              name: 1,
-              price: 1,
-              slots: 1,
-              booked: {
-                $map: {
-                  input: '$booked',
-                  as: 'book',
-                  in: '$$book.slot',
-                },
-              },
-            },
-          },
-          {
-            $project: {
-              name: 1,
-              price: 1,
-              slots: {
-                $setDifference: ['$slots', '$booked'],
-              },
-            },
-          },
-        ])
-        .toArray();
-      res.send(options);
-    });
+    // app.get('/v2/appointmentOptions', async (req, res) => {
+    //   const date = req.query.date;
+    //   const options = await appointmentOptionCollection
+    //     .aggregate([
+    //       {
+    //         $lookup: {
+    //           from: 'bookings',
+    //           localField: 'name',
+    //           foreignField: 'treatment',
+    //           pipeline: [
+    //             {
+    //               $match: {
+    //                 $expr: {
+    //                   $eq: ['$appointmentDate', date],
+    //                 },
+    //               },
+    //             },
+    //           ],
+    //           as: 'booked',
+    //         },
+    //       },
+    //       {
+    //         $project: {
+    //           name: 1,
+    //           price: 1,
+    //           slots: 1,
+    //           booked: {
+    //             $map: {
+    //               input: '$booked',
+    //               as: 'book',
+    //               in: '$$book.slot',
+    //             },
+    //           },
+    //         },
+    //       },
+    //       {
+    //         $project: {
+    //           name: 1,
+    //           price: 1,
+    //           slots: {
+    //             $setDifference: ['$slots', '$booked'],
+    //           },
+    //         },
+    //       },
+    //     ])
+    //     .toArray();
+    //   res.send(options);
+    // });
 
     app.get('/appointmentSpecialty', async (req, res) => {
       const query = {};
@@ -207,7 +205,7 @@ async function run() {
       const updatedDoc = {
         $set: {
           paid: true,
-          transactionId: payment.transectionId,
+          transactionId: payment.transactionId,
         },
       };
       const updatedResult = await bookingsCollection.updateOne(filter, updatedDoc);
@@ -231,17 +229,18 @@ async function run() {
       res.send(users);
     });
 
-    app.post('/users', async (req, res) => {
-      const user = req.body;
-      const result = await usersCollection.insertOne(user);
-      res.send(result);
-    });
-
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
       const query = { email };
       const user = await usersCollection.findOne(query);
       res.send({ isAdmin: user?.role === 'admin' });
+    });
+
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+      console.log(user);
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
     });
 
     app.put('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
@@ -259,16 +258,16 @@ async function run() {
 
     // temporary to update price field on appointment options
     // app.get('/addPrice', async (req, res) => {
-    //   const filter = {};
-    //   const options = { upsert: true };
-    //   const updatedDoc = {
-    //     $set: {
-    //       price: 99,
-    //     },
-    //   };
-    //   const result = await appointmentOptionCollection.updateMany(filter, updatedDoc, options);
-    //   res.send(result);
-    // });
+    //     const filter = {}
+    //     const options = { upsert: true }
+    //     const updatedDoc = {
+    //         $set: {
+    //             price: 99
+    //         }
+    //     }
+    //     const result = await appointmentOptionCollection.updateMany(filter, updatedDoc, options);
+    //     res.send(result);
+    // })
 
     app.get('/doctors', verifyJWT, verifyAdmin, async (req, res) => {
       const query = {};
